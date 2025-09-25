@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9909c92ee64d3614a9ce7fa03f150756, type: 3}
+  m_Name: TextShaderRenderSettings
+  m_EditorClassIdentifier: 
+  width: 150
+  height: 60
+  generationDelay: 0
+  font: {fileID: 11400000, guid: d8a2ae60f7825934e8a2201a4fe34390, type: 2}
+  textGenerationComputeShader: {fileID: 7200000, guid: eadfdb70379ab7a46916cafdfd9e4b16, type: 3}

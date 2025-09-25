@@ -1,0 +1,124 @@
+#pragma kernel CSMain
+#pragma kernel GenBrightnessText
+
+#include "random_gen.cginc"
+
+RWStructuredBuffer<int> Result;
+int width;
+int height;
+int charCount;
+uint4 randomSeed;
+
+Texture2D<float3> ScreenColor;
+SamplerState samplerScreenColor;
+
+float random_value(uint3 id)
+{
+    uint4 rs = randomSeed;
+    rs.x += id.x;
+    rs.y += id.y;
+    rs.z += (uint)(sin(id.x * 71.01) * 500461564);
+    rs.w += (uint)(cos(id.y * 53.7) * 1023467329);
+    RandomResult rand = HybridTaus(rs);
+    return rand.value;
+}
+
+int select_int(float random)
+{
+    return (int)clamp(round(random * charCount), 0, charCount - 1);
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.y * width + id.x;
+    if (index >= width * height) return;
+
+    float rand = random_value(id);
+    Result[index] = select_int(rand);
+}
+
+
+
+// int brightnessToChar(float brightness)
+// {
+//     brightness = saturate(brightness);
+//                 
+//     if (brightness < 0.1) return 0; // space
+//     else if (brightness < 0.2) return 1; // .
+//     else if (brightness < 0.3) return 2; // :
+//     else if (brightness < 0.4) return 3; // -
+//     else if (brightness < 0.5) return 4; // =
+//     else if (brightness < 0.6) return 5; // +
+//     else if (brightness < 0.8) return 6; // *
+//     else if (brightness < 0.9) return 7; // #
+//     else return 8; // @
+// }
+
+float srgb_to_linear(float x)
+{
+    if (x <= 0.04045 ) {
+        return x / 12.92;
+    } else {
+        return pow((x + 0.055) / 1.055, 2.4);
+    }
+}
+
+float lumi_to_luma(float x)
+{
+    if (x <= 0.008856)
+    {
+        return x * 903.3;
+    }
+    else
+    {
+        return pow(x, 1.0 / 3.0) * 116 - 16;
+    }
+}
+
+int brightnessToChar(float brightness)
+{
+    return (int)round(clamp(brightness * charCount, 0, charCount - 1));
+}
+
+float get_brightness(float2 uv, float2 scale)
+{
+    float3 color = ScreenColor.SampleLevel(samplerScreenColor, uv, 0);
+    // float brightness = dot(color.rgb, float3(0.299, 0.587, 0.114));
+    float3 linearized = float3(srgb_to_linear(color.x), srgb_to_linear(color.y), srgb_to_linear(color.z));
+    float lum = dot(linearized.rgb, float3(0.2126, 0.7152, 0.0722));
+    float luma = lumi_to_luma(lum);
+    
+    
+    // float brightness = saturate(dot(color.rgb, float3(1, 1, 1) / 3.0));
+    return saturate(luma / 100.0);
+}
+
+float4 CalculateRect(uint2 cell, float2 scale)
+{
+    // uint tw, th;
+    // uint _;
+    // screenColor.GetDimensions(0, tw, th, _);
+    
+    float2 bottomleft = cell * scale;
+    return float4(bottomleft.xy, scale.xy);
+}
+
+
+[numthreads(8,8,1)]
+void GenBrightnessText (uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.y * width + id.x;
+    if (index >= width * height) return;
+
+
+    float2 scale = float(1.0).xx / float2(width, height);
+
+    float4 screenRect = CalculateRect(id.xy, scale);
+    float2 centeruv = screenRect.xy + screenRect.zw * 0.5f;
+
+    float brightness = get_brightness(centeruv, scale);
+    int charSelected = brightnessToChar(brightness);
+
+    Result[index] = charSelected;
+}

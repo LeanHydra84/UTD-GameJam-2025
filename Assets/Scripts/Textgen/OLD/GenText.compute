@@ -1,0 +1,59 @@
+#pragma kernel CSMain
+
+#include "../random_gen.cginc"
+
+uint4 randomSeed;
+RWByteAddressBuffer stringbuffer;
+
+uint width, height;
+
+void WriteChar(uint index, int cv)
+{
+    // if (index % 2 == 0)
+    // {
+    //     const int mask = 0x0000FFFF;
+    //     
+    //     int value = stringbuffer.Load(index * 4) & mask;
+    //     stringbuffer.Store(index * 4, value | cv);
+    // }
+    // else
+    // {
+    //     const int mask = 0xFFFF0000;
+    //     int value = stringbuffer.Load((index - 1) * 4) & mask;
+    //     stringbuffer.Store((index - 1) * 4, value | cv);
+    // }
+
+    stringbuffer.Store(index * 4, cv);
+}
+
+
+
+int CalcChar(float f)
+{
+    // between 33 and 126 inc
+    return clamp(round(f * (126 - 33) + 33), 33, 126);
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.y * width + id.x;
+    if (index >= width * height) return;
+
+    // WriteChar(index, 64);
+    // return;
+    
+    uint4 rs = randomSeed;
+    rs.x += id.x;
+    rs.y += id.y;
+    rs.z += (uint)(sin(id.x * 71.01) * 500461564);
+    rs.w += (uint)(cos(id.y * 53.7) * 1023467329);
+    RandomResult rand = HybridTaus(rs);
+    
+    float rv1 = rand.value;
+    float rv2 = HybridTaus(rand.state).value;
+
+    int total = CalcChar(rv1) | (CalcChar(rv2) << 16);
+    
+    WriteChar(index, total);
+}
