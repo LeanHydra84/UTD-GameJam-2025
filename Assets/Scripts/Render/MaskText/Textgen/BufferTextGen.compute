@@ -4,19 +4,16 @@
 #include "random_gen.cginc"
 
 RWStructuredBuffer<int> Result;
-int width;
-int height;
-int charCount;
+uint width;
+uint height;
+uint charCount;
 uint4 randomSeed;
 
 Texture2D<float> ScreenColor;
 SamplerState samplerScreenColor;
 
-Texture2D<float4> StencilTexture;
+Texture2D<float> StencilTexture;
 SamplerState samplerStencilTexture;
-
-Texture2D<float> _CameraDepthTexture;
-SamplerState sampler_CameraDepthTexture;
 
 float random_value(uint3 id)
 {
@@ -47,6 +44,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
 float srgb_to_linear(float x)
 {
+    if (x <= 0) return 0;
     if (x <= 0.04045 ) {
         return x / 12.92;
     } else {
@@ -56,6 +54,7 @@ float srgb_to_linear(float x)
 
 float lumi_to_luma(float x)
 {
+    if (x <= 0) return 0;
     if (x <= 0.008856)
     {
         return x * 903.3;

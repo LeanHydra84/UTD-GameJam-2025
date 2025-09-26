@@ -117,5 +117,6 @@ public class TextGenerator : IDisposable
 	public void Dispose()
 	{
 		buffer?.Release();
+		buffer = null;
 	}
 }

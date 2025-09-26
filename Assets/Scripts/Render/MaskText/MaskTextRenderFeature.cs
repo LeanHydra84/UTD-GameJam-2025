@@ -83,8 +83,19 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             simpleDrawData.IsInitialized = false;
 
             if (settings == null) return;
-            if (drawMaterial == null) return;
-            if (blackMaterial == null) return;
+            if (drawMaterial == null)
+            {
+                if (settings.simpleDrawShader)
+                    drawMaterial = new Material(settings.simpleDrawShader);
+                else return;
+            }
+
+            if (blackMaterial == null)
+            {
+                if (settings.simpleBlackShader)
+                    drawMaterial = new Material(settings.simpleBlackShader);
+                else return;
+            }
             
             UniversalRenderingData renderingData = frameContext.Get<UniversalRenderingData>();
             UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
@@ -196,11 +207,6 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
 
         private void CalculateFontBuffers()
         {
-            if (glyphBuffer != null)
-            {
-                glyphBuffer.Release();
-            }
-
             if (drawMaterial == null)
                 return;
             
@@ -208,6 +214,11 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             ComputeGlyph[] glyphs = GetGlyphsFromString(settings.font, settings.glyphSet)
                 .Select(a => new ComputeGlyph(a, txDim))
                 .ToArray();
+            
+            if (glyphBuffer != null)
+            {
+                glyphBuffer.Release();
+            }
             glyphBuffer = new ComputeBuffer(glyphs.Length, Marshal.SizeOf(typeof(ComputeGlyph)));
             glyphBuffer.name = "Glyph Buffer";
             glyphBuffer.SetData(glyphs);
@@ -216,12 +227,13 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             
             drawMaterial.SetBuffer(GlyphBufferID, glyphBuffer);
         }
+
         
         public TextRenderPass(TextShaderRenderSettings renderSettings)
         {
             OnSettingsChanged(renderSettings);
         }
-
+        
         public void OnSettingsChanged(TextShaderRenderSettings renderSettings)
         {
             settings = renderSettings;
@@ -261,7 +273,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             
             if (resourceData.isActiveTargetBackBuffer)
                 return;
-
+            
             if (cameraData.isSceneViewCamera)
                 return;
 
@@ -282,6 +294,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             using (var builder = renderGraph.AddRasterRenderPass("Text Generation Pass", out IntermediatePassData data))
             {
                 SimpleDrawData sdd = frameContext.Get<SimpleDrawData>();
+                if (!sdd.IsInitialized) return;
                 
                 data.Settings = settings;
                 data.DrawMaterial = drawMaterial;
@@ -316,6 +329,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
 
     }
     
+    
     class MaskRenderPass : ScriptableRenderPass
     {
         
@@ -348,16 +362,15 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             if (cameraData.isSceneViewCamera && !settings.showInSceneView)
                 return;
 
+            TextTextureData textTextureData = frameContext.Get<TextTextureData>();
+            if (!textTextureData.IsInitialized)
+                return;
+            
             descriptor.width = cameraData.cameraTargetDescriptor.width;
             descriptor.height = cameraData.cameraTargetDescriptor.height;
             descriptor.depthBufferBits = 0;
 
             TextureHandle dest = UniversalRenderer.CreateRenderGraphTexture(renderGraph, descriptor, "New Camera Texture", false);
-            TextTextureData textTextureData = frameContext.Get<TextTextureData>();
-
-            if (!textTextureData.IsInitialized)
-                return;
-
             RenderGraphUtils.BlitMaterialParameters parameters = new(textTextureData.TextDrawTexture, dest, material, 0);
             renderGraph.AddBlitPass(parameters);
 
