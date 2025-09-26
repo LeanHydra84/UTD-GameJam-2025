@@ -12,3 +12,4 @@ public class TextShaderRenderSettings : ScriptableObject
 	public TMP_FontAsset font;
 	public ComputeShader textGenerationComputeShader;
 }
+

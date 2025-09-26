@@ -97,7 +97,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             GlyphSet = glyphString;
             drawMaterial.SetBuffer(GlyphBufferID, glyphBuffer);
         }
-
+        
         public void SetGlyphSet(string str)
         {
             CalculateFontBuffers(settings.font, str);
@@ -264,7 +264,6 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
         renderer.EnqueuePass(textRenderPass);
         renderer.EnqueuePass(maskRenderPass);
     }
-
     
     void OnValidate()
     {
