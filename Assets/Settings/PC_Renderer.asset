@@ -67,10 +67,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Active: 1
   settings: {fileID: 11400000, guid: e930671f9a974c5499f0ab09a5b44605, type: 2}
-  glyphSet: ' ;\1+a0#=.'
-  textRenderMaterial: {fileID: 2100000, guid: 9edb0881c1639c04680e809aa81f93b9, type: 2}
-  textMaskMaterial: {fileID: 2100000, guid: bb8d2d7ef4af12f4db4d8c5bcff447d6, type: 2}
-  showInSceneView: 0
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0

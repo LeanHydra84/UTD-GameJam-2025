@@ -9,8 +9,14 @@ int height;
 int charCount;
 uint4 randomSeed;
 
-Texture2D<float3> ScreenColor;
+Texture2D<float> ScreenColor;
 SamplerState samplerScreenColor;
+
+Texture2D<float4> StencilTexture;
+SamplerState samplerStencilTexture;
+
+Texture2D<float> _CameraDepthTexture;
+SamplerState sampler_CameraDepthTexture;
 
 float random_value(uint3 id)
 {
@@ -38,22 +44,6 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Result[index] = select_int(rand);
 }
 
-
-
-// int brightnessToChar(float brightness)
-// {
-//     brightness = saturate(brightness);
-//                 
-//     if (brightness < 0.1) return 0; // space
-//     else if (brightness < 0.2) return 1; // .
-//     else if (brightness < 0.3) return 2; // :
-//     else if (brightness < 0.4) return 3; // -
-//     else if (brightness < 0.5) return 4; // =
-//     else if (brightness < 0.6) return 5; // +
-//     else if (brightness < 0.8) return 6; // *
-//     else if (brightness < 0.9) return 7; // #
-//     else return 8; // @
-// }
 
 float srgb_to_linear(float x)
 {
@@ -94,6 +84,11 @@ float get_brightness(float2 uv, float2 scale)
     return saturate(luma / 100.0);
 }
 
+float get_stencil(float2 uv)
+{
+    return StencilTexture.SampleLevel(samplerStencilTexture, uv, 0);
+}
+
 float4 CalculateRect(uint2 cell, float2 scale)
 {
     // uint tw, th;
@@ -104,19 +99,25 @@ float4 CalculateRect(uint2 cell, float2 scale)
     return float4(bottomleft.xy, scale.xy);
 }
 
-
 [numthreads(8,8,1)]
 void GenBrightnessText (uint3 id : SV_DispatchThreadID)
 {
     uint index = id.y * width + id.x;
     if (index >= width * height) return;
 
-
     float2 scale = float(1.0).xx / float2(width, height);
 
     float4 screenRect = CalculateRect(id.xy, scale);
     float2 centeruv = screenRect.xy + screenRect.zw * 0.5f;
 
+    float stencil = get_stencil(centeruv);
+    if (stencil > 0.5)
+    {
+        float rand = random_value(id);
+        Result[index] = select_int(rand);
+        return;
+    }
+    
     float brightness = get_brightness(centeruv, scale);
     int charSelected = brightnessToChar(brightness);
 

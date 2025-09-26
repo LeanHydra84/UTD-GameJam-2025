@@ -8,49 +8,166 @@ using UnityEngine.TextCore;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.RenderGraphModule.Util;
-using UnityEngine.Serialization;
-using UnityEngine.UI;
 
 public class MaskTextRenderFeature : ScriptableRendererFeature
 {
 
-    class GlyphBufferContext : ContextItem
-    {
-        public GraphicsBuffer GlyphBufferHandle;
-        
-        public override void Reset()
-        {
-            GlyphBufferHandle = null;
-        }
-    }
-
     class TextTextureData : ContextItem
     {
-        public TextureHandle simpleDrawTexture;
+        public TextureHandle TextDrawTexture;
+        public bool IsInitialized;
         
         public override void Reset()
         {
-            simpleDrawTexture = TextureHandle.nullHandle;
+            TextDrawTexture = TextureHandle.nullHandle;
         }
     }
+    
+    class SimpleDrawData : ContextItem
+    {
+        public TextureHandle SimpleDrawTexture;
+        public bool IsInitialized;
+        
+        public override void Reset()
+        {
+            SimpleDrawTexture = TextureHandle.nullHandle;
+        }
+    }
+    
+    class SimpleDrawRenderPass : ScriptableRenderPass
+    {
 
+        public TextShaderRenderSettings Settings => settings;
+        
+        private TextShaderRenderSettings settings;
+        
+        private Material drawMaterial;
+        private Material blackMaterial;
+        
+        private List<ShaderTagId> shaderOverrideTags;
+        private RenderTextureDescriptor descriptor;
+        private FilteringSettings filterSettings;
+        private FilteringSettings inverseFilterSettings;
+
+        public SimpleDrawRenderPass(TextShaderRenderSettings renderSettings)
+        {
+            OnSettingsChanged(renderSettings);
+        }
+
+        public void OnSettingsChanged(TextShaderRenderSettings renderSettings)
+        {
+            settings = renderSettings;
+            if (renderSettings == null)
+                return;
+            
+            if (renderSettings.simpleDrawShader)
+                drawMaterial = new Material(renderSettings.simpleDrawShader);
+            if (renderSettings.simpleBlackShader)
+                blackMaterial = new Material(renderSettings.simpleBlackShader);
+            
+            descriptor = new RenderTextureDescriptor(Screen.width, Screen.height, RenderTextureFormat.R8); // default depthBufferBits?
+            shaderOverrideTags = new List<ShaderTagId>() { new ("UniversalForward"), new ("SRPDefaultUnlit") };
+            filterSettings = new FilteringSettings(new RenderQueueRange(0, 5000), renderSettings.layerMask);
+            inverseFilterSettings = new FilteringSettings(new RenderQueueRange(0, 5000), ~renderSettings.layerMask);
+        }
+
+        private class PassData
+        {
+            public RendererListHandle RendererListHandle;
+            public TextureHandle DrawTexture;
+        }
+
+        public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
+        {
+            var simpleDrawData = frameContext.Create<SimpleDrawData>();
+            simpleDrawData.IsInitialized = false;
+
+            if (settings == null) return;
+            if (drawMaterial == null) return;
+            if (blackMaterial == null) return;
+            
+            UniversalRenderingData renderingData = frameContext.Get<UniversalRenderingData>();
+            UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
+            UniversalLightData lightData = frameContext.Get<UniversalLightData>();
+            UniversalResourceData resourceData = frameContext.Get<UniversalResourceData>();
+            
+            if (resourceData.isActiveTargetBackBuffer)
+                return;
+
+            if (cameraData.isSceneViewCamera)
+                return;
+            
+            SortingCriteria sortFlags = cameraData.defaultOpaqueSortFlags;
+            TextureHandle txHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, descriptor, "R8 Simple Draw Texture", false);
+            
+            simpleDrawData.SimpleDrawTexture = txHandle;
+            simpleDrawData.IsInitialized = true;
+            
+            // BLACKOUT PASS FOR NOT DEPTH
+            using (var builder = renderGraph.AddRasterRenderPass<PassData>("Simple Draw", out var passData))
+            {
+                DrawingSettings drawSettings = RenderingUtils.CreateDrawingSettings(shaderOverrideTags, renderingData, cameraData, lightData, sortFlags);
+                drawSettings.overrideMaterial = drawMaterial;
+
+                var rendererListParameters = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
+                passData.RendererListHandle = renderGraph.CreateRendererList(rendererListParameters);
+                
+                // Create render texture
+                passData.DrawTexture = txHandle;
+                
+                // simpleDrawData.simpleDrawTexture = passData.drawTexture;
+                
+                builder.UseRendererList(passData.RendererListHandle);
+                builder.SetRenderAttachment(passData.DrawTexture, 0);
+
+                builder.SetRenderFunc((PassData data, RasterGraphContext context) => ExecuteLightPass(data, context));
+            }
+            
+            // BLACKOUT PASS FOR DEPTH
+            using (var builder = renderGraph.AddRasterRenderPass<PassData>("Blackout Draw", out var passData))
+            {
+                DrawingSettings drawSettings = RenderingUtils.CreateDrawingSettings(shaderOverrideTags, renderingData, cameraData, lightData, sortFlags);
+                drawSettings.overrideMaterial = blackMaterial;
+                
+                var rendererListParameters = new RendererListParams(renderingData.cullResults, drawSettings, inverseFilterSettings);
+                passData.RendererListHandle = renderGraph.CreateRendererList(rendererListParameters);
+                
+                passData.DrawTexture = txHandle;
+                
+                builder.UseRendererList(passData.RendererListHandle);
+                builder.SetRenderAttachment(passData.DrawTexture, 0);
+                
+                builder.SetRenderFunc((PassData data, RasterGraphContext context) => ExecuteDarkPass(data, context));
+            }
+        }
+
+        static void ExecuteLightPass(PassData data, RasterGraphContext context)
+        {
+            context.cmd.ClearRenderTarget(true, true, Color.black);
+            context.cmd.DrawRendererList(data.RendererListHandle);
+        }
+        
+        static void ExecuteDarkPass(PassData data, RasterGraphContext context)
+        {
+            context.cmd.DrawRendererList(data.RendererListHandle);
+        }
+    }
+    
     class TextRenderPass : ScriptableRenderPass
     {
-        private Material drawMaterial;
-        private RenderTextureDescriptor descriptor;
-
-        private ComputeBuffer glyphBuffer;
-        private int glyphCount;
-        
         private static readonly int GlyphBufferID = Shader.PropertyToID("_glyphBuffer");
         private static readonly int CharacterBufferID = Shader.PropertyToID("_characterBuffer");
         private static readonly int WidthID = Shader.PropertyToID("_Width");
         private static readonly int HeightID = Shader.PropertyToID("_Height");
 
         private TextShaderRenderSettings settings;
+        
+        private Material drawMaterial;
+        private ComputeBuffer glyphBuffer;
         private TextGenerator textGenerator;
-
-        public string GlyphSet { get; private set; }
+        
+        private int glyphCount;
+        private RenderTextureDescriptor descriptor;
         
         [StructLayout(LayoutKind.Sequential)]
         private struct ComputeGlyph
@@ -77,15 +194,18 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             return str.Select(a => fontAsset.characterLookupTable[a].glyph);
         }
 
-        private void CalculateFontBuffers(TMP_FontAsset fontAsset, string glyphString)
+        private void CalculateFontBuffers()
         {
             if (glyphBuffer != null)
             {
                 glyphBuffer.Release();
             }
+
+            if (drawMaterial == null)
+                return;
             
-            Vector2Int txDim = new Vector2Int(fontAsset.atlasWidth, fontAsset.atlasHeight);
-            ComputeGlyph[] glyphs = GetGlyphsFromString(fontAsset, glyphString)
+            Vector2Int txDim = new Vector2Int(settings.font.atlasWidth, settings.font.atlasHeight);
+            ComputeGlyph[] glyphs = GetGlyphsFromString(settings.font, settings.glyphSet)
                 .Select(a => new ComputeGlyph(a, txDim))
                 .ToArray();
             glyphBuffer = new ComputeBuffer(glyphs.Length, Marshal.SizeOf(typeof(ComputeGlyph)));
@@ -94,42 +214,51 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             
             glyphCount = glyphs.Length;
             
-            GlyphSet = glyphString;
             drawMaterial.SetBuffer(GlyphBufferID, glyphBuffer);
         }
         
-        public void SetGlyphSet(string str)
+        public TextRenderPass(TextShaderRenderSettings renderSettings)
         {
-            CalculateFontBuffers(settings.font, str);
-            if (textGenerator != null)
-                textGenerator.GlyphCount = glyphCount;
+            OnSettingsChanged(renderSettings);
         }
-        
-        public TextRenderPass(Material material, TextShaderRenderSettings settings, string glyphString)
+
+        public void OnSettingsChanged(TextShaderRenderSettings renderSettings)
         {
-            this.settings = settings;
-            drawMaterial = material;
-            CalculateFontBuffers(settings.font, glyphString);
-            textGenerator = new TextGenerator(settings.textGenerationComputeShader, glyphCount, settings.width, settings.height);
+            settings = renderSettings;
+            if (renderSettings == null)
+                return;
+            
+            drawMaterial = renderSettings.textGenerationMaterial;
+            
+            CalculateFontBuffers();
+
+            textGenerator?.Dispose();
+            textGenerator = new TextGenerator(renderSettings.textGenerationComputeShader, glyphCount, renderSettings.width, renderSettings.height);
             descriptor = new RenderTextureDescriptor(Screen.width, Screen.height, RenderTextureFormat.ARGB32, 0);
         }
 
         private class IntermediatePassData
         {
-            public TextureHandle screenColor;
-            public TextGenerator text;
-            public TextShaderRenderSettings settings;
-            public Material drawMaterial;
-            public ComputeBuffer glyphBuffer;
+            public TextureHandle ScreenColor;
+            public TextureHandle StencilTextureHandle;
+            public TextShaderRenderSettings Settings;
+            public ComputeBuffer GlyphBuffer;
+            public TextGenerator Text;
+            public Material DrawMaterial;
         }
         
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
         {
-            if (drawMaterial == null) return;
             
             UniversalResourceData resourceData = frameContext.Get<UniversalResourceData>();
             UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
+            TextTextureData textTextureData = frameContext.Create<TextTextureData>();
+            textTextureData.IsInitialized = false;
+
+            if (settings == null) return;
+            if (drawMaterial == null) return;
+            
             if (resourceData.isActiveTargetBackBuffer)
                 return;
 
@@ -142,8 +271,8 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
 
             TextureHandle src = resourceData.activeColorTexture;
             TextureHandle dest = UniversalRenderer.CreateRenderGraphTexture(renderGraph, descriptor, "TextAtlasTexture", false);
-            TextTextureData textTextureData = frameContext.Create<TextTextureData>();
-            textTextureData.simpleDrawTexture = dest;
+            textTextureData.TextDrawTexture = dest;
+            textTextureData.IsInitialized = true;
 
             if (textGenerator.Width != settings.width || textGenerator.Height != settings.height)
             {
@@ -152,12 +281,16 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
 
             using (var builder = renderGraph.AddRasterRenderPass("Text Generation Pass", out IntermediatePassData data))
             {
-                data.settings = settings;
-                data.drawMaterial = drawMaterial;
-                data.text = textGenerator;
-                data.screenColor = resourceData.activeColorTexture;
-                data.glyphBuffer = glyphBuffer;
+                SimpleDrawData sdd = frameContext.Get<SimpleDrawData>();
                 
+                data.Settings = settings;
+                data.DrawMaterial = drawMaterial;
+                data.Text = textGenerator;
+                data.ScreenColor = resourceData.activeColorTexture;
+                data.GlyphBuffer = glyphBuffer;
+                data.StencilTextureHandle = sdd.IsInitialized ? sdd.SimpleDrawTexture : TextureHandle.nullHandle;
+                
+                builder.UseTexture(sdd.SimpleDrawTexture);
                 builder.UseTexture(resourceData.activeColorTexture);
                 builder.AllowPassCulling(false);
                 builder.SetRenderFunc((IntermediatePassData idp, RasterGraphContext context) => IntermediateDataSetFunc(idp, context));
@@ -167,47 +300,43 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             renderGraph.AddBlitPass(parameters, "Render Text Blit");
         }
 
-        private static void IntermediateDataSetFunc(IntermediatePassData i, RasterGraphContext context)
+        private static void IntermediateDataSetFunc(IntermediatePassData i, RasterGraphContext _)
         {
             // Generate Text
-            i.text.SetScreenColorTextureHandle(i.screenColor);
-            i.text.Generate();
+            i.Text.SetStencilTextureHandle(i.StencilTextureHandle);
+            i.Text.SetScreenColorTextureHandle(i.ScreenColor);
+            i.Text.Generate();
 
-            i.drawMaterial.SetInt(WidthID, i.settings.width);
-            i.drawMaterial.SetInt(HeightID, i.settings.height);
+            i.DrawMaterial.SetInt(WidthID, i.Settings.width);
+            i.DrawMaterial.SetInt(HeightID, i.Settings.height);
             
-            i.drawMaterial.SetBuffer(GlyphBufferID, i.glyphBuffer);
-            i.drawMaterial.SetBuffer(CharacterBufferID, i.text.Buffer);
+            i.DrawMaterial.SetBuffer(GlyphBufferID, i.GlyphBuffer);
+            i.DrawMaterial.SetBuffer(CharacterBufferID, i.Text.Buffer);
         }
 
     }
     
     class MaskRenderPass : ScriptableRenderPass
     {
-
-        public Material Material => _material;
         
-        private Material _material;
+        private TextShaderRenderSettings settings;
+        
+        private Material material;
         private RenderTextureDescriptor descriptor;
-        private bool showInSceneView = false;
         
-        public MaskRenderPass(Material mat)
+        public MaskRenderPass(TextShaderRenderSettings renderSettings)
         {
-            _material = mat;
-            descriptor = new RenderTextureDescriptor(Screen.width, Screen.height, RenderTextureFormat.Default, 0);
+            OnSettingsChanged(renderSettings);
             requiresIntermediateTexture = true;
         }
 
-        public void SetMaterial(Material mat)
+        public void OnSettingsChanged(TextShaderRenderSettings renderSettings)
         {
-            _material = mat;
+            settings = renderSettings;
+            material = renderSettings.textMaskMaterial;
+            descriptor = new RenderTextureDescriptor(Screen.width, Screen.height, RenderTextureFormat.Default, 0);
         }
 
-        public void SetSceneCameraView(bool canView)
-        {
-            showInSceneView = canView;
-        }
-        
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
         {
             UniversalResourceData resourceData = frameContext.Get<UniversalResourceData>();
@@ -216,74 +345,73 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             if (resourceData.isActiveTargetBackBuffer)
                 return;
 
-            if (cameraData.isSceneViewCamera && !showInSceneView)
+            if (cameraData.isSceneViewCamera && !settings.showInSceneView)
                 return;
 
             descriptor.width = cameraData.cameraTargetDescriptor.width;
             descriptor.height = cameraData.cameraTargetDescriptor.height;
             descriptor.depthBufferBits = 0;
 
-            TextureHandle src = resourceData.activeColorTexture;
             TextureHandle dest = UniversalRenderer.CreateRenderGraphTexture(renderGraph, descriptor, "New Camera Texture", false);
             TextTextureData textTextureData = frameContext.Get<TextTextureData>();
 
-            RenderGraphUtils.BlitMaterialParameters parameters = new(textTextureData.simpleDrawTexture, dest, _material, 0);
+            if (!textTextureData.IsInitialized)
+                return;
+
+            RenderGraphUtils.BlitMaterialParameters parameters = new(textTextureData.TextDrawTexture, dest, material, 0);
             renderGraph.AddBlitPass(parameters);
 
             resourceData.cameraColor = dest;
         }
 
     }
+    
 
-    private TextRenderPass textRenderPass;
+    private SimpleDrawRenderPass simpleDrawPass;
+    private TextRenderPass textRenderPass; 
     private MaskRenderPass maskRenderPass;
 
     [SerializeField] private TextShaderRenderSettings settings;
 
-    [Header("Drawing Text")] 
-    [SerializeField] private string glyphSet;
-    [SerializeField] private Material textRenderMaterial;
+    // [Header("Stencil faker")]
+    // [SerializeField] private Shader simpleDrawShader;
+    // [SerializeField] private Shader simpleBlackShader;
+    // [SerializeField] private LayerMask layerMask;
     
-    [Header("Masking")]
-    [SerializeField] private Material textMaskMaterial;
-    [SerializeField] private bool showInSceneView = false;
+    // [Header("Drawing Text")] 
+    // [SerializeField] private string glyphSet;
+    // [SerializeField] private Material textRenderMaterial;
+    
+    // [Header("Masking")]
+    // [SerializeField] private Material textMaskMaterial;
+    // [SerializeField] private bool showInSceneView = false;
     
     public override void Create()
     {
-        if (textMaskMaterial == null) return;
+        simpleDrawPass = new SimpleDrawRenderPass(settings);
+        textRenderPass = new TextRenderPass(settings);
+        maskRenderPass = new MaskRenderPass(settings);
 
-        textRenderPass = new TextRenderPass(textRenderMaterial, settings, glyphSet);
-        maskRenderPass = new MaskRenderPass(textMaskMaterial);
-
-        textRenderPass.renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
+        simpleDrawPass.renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
+        textRenderPass.renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing;
         maskRenderPass.renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing;
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+        renderer.EnqueuePass(simpleDrawPass);
         renderer.EnqueuePass(textRenderPass);
         renderer.EnqueuePass(maskRenderPass);
     }
     
     void OnValidate()
     {
-        if (textRenderPass == null) return;
-        if (maskRenderPass == null) return;
+        if (simpleDrawPass == null) return;
+        if (settings == simpleDrawPass.Settings) return;
         
-        // Text
-        if (glyphSet != textRenderPass.GlyphSet)
-        {
-            textRenderPass.SetGlyphSet(glyphSet);
-        }
-        
-        // Mask
-        if (maskRenderPass == null) return;
-
-        if (textMaskMaterial != maskRenderPass.Material)
-        {
-            maskRenderPass.SetMaterial(textMaskMaterial);
-        }
-        maskRenderPass.SetSceneCameraView(showInSceneView);
+        simpleDrawPass.OnSettingsChanged(settings);
+        textRenderPass.OnSettingsChanged(settings);
+        maskRenderPass.OnSettingsChanged(settings);
     }
     
 }

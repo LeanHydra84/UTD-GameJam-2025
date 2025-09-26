@@ -1,7 +1,8 @@
+using System;
 using UnityEngine;
 using UnityEngine.Rendering.RenderGraphModule;
 
-public class TextGenerator
+public class TextGenerator : IDisposable
 {
 
 	public ComputeShader shader;
@@ -70,6 +71,7 @@ public class TextGenerator
 	private static readonly int RandomSeedID = Shader.PropertyToID("randomSeed");
 	private static readonly int StringBufferID = Shader.PropertyToID("Result");
 	private static readonly int ScreenColorID = Shader.PropertyToID("ScreenColor");
+	private static readonly int StencilTextureID = Shader.PropertyToID("StencilTexture");
 
 	private int[] GetSeed()
 	{
@@ -80,10 +82,19 @@ public class TextGenerator
 		seed[3] = Rand.Next();
 		return seed;
 	}
-	
+
+	public void SetStencilTextureHandle(TextureHandle handle)
+	{
+		if (!handle.IsValid())
+			return;
+		int kernel = shader.FindKernel(CurrentKernel);
+		shader.SetTexture(kernel, StencilTextureID, handle);
+	}
 	
 	public void SetScreenColorTextureHandle(TextureHandle handle)
 	{
+		if (!handle.IsValid())
+			return;
 		int kernel = shader.FindKernel(CurrentKernel);
 		shader.SetTexture(kernel, ScreenColorID, handle);
 	}
@@ -101,5 +112,10 @@ public class TextGenerator
         shader.SetInt(CharCountID, GlyphCount);
 		
 		shader.Dispatch(kernel, Width / (int)x + 1, Height / (int)y + 1, 1);
+	}
+
+	public void Dispose()
+	{
+		buffer?.Release();
 	}
 }

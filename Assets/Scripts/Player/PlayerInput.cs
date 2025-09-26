@@ -13,6 +13,9 @@ public class PlayerInput : MonoBehaviour
     
     public bool Jump { get; private set; }
 
+    public bool SwapGlasses { get; private set; }
+    public bool ToggleGlasses { get; private set; }
+    
     void Update()
     {
         Movement = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
@@ -22,5 +25,7 @@ public class PlayerInput : MonoBehaviour
         Jump = Input.GetKeyDown(KeyCode.Space);
         Sprint = Input.GetKey(KeyCode.LeftShift);
         
+        SwapGlasses = Input.GetKeyDown(KeyCode.Q);
+        ToggleGlasses = Input.GetKeyDown(KeyCode.Tab);
     }
 }

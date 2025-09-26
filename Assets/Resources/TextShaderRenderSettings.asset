@@ -12,8 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9909c92ee64d3614a9ce7fa03f150756, type: 3}
   m_Name: TextShaderRenderSettings
   m_EditorClassIdentifier: 
-  width: 150
-  height: 60
-  generationDelay: 0
+  width: 200
+  height: 80
+  simpleDrawShader: {fileID: 4800000, guid: 62ab846ae0c65794b91989f8911bfc30, type: 3}
+  simpleBlackShader: {fileID: 4800000, guid: ed30f77fc021dff4687d1ed147a434f1, type: 3}
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 64
+  glyphSet: ' \;-=aXO0#.'
   font: {fileID: 11400000, guid: d8a2ae60f7825934e8a2201a4fe34390, type: 2}
   textGenerationComputeShader: {fileID: 7200000, guid: eadfdb70379ab7a46916cafdfd9e4b16, type: 3}
+  textGenerationMaterial: {fileID: 2100000, guid: 9edb0881c1639c04680e809aa81f93b9, type: 2}
+  textMaskMaterial: {fileID: 2100000, guid: bb8d2d7ef4af12f4db4d8c5bcff447d6, type: 2}
+  showInSceneView: 0

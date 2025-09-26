@@ -102,9 +102,9 @@ Shader "Fullscreen/TextRenderShader"
                 Glyph glyph = _glyphBuffer[selected];
 
                 float4 glyphdata = float4(glyph.x, glyph.y, glyph.width, glyph.height);
-                // float2 glyphCoord = glyphdata.zw * relative01 + glyphdata.xy;
+                float2 glyphCoord = glyphdata.zw * relative01 + glyphdata.xy;
                 // correction code for thin characters...
-                float2 glyphCoord = get_glyphcoord(glyphdata, relative01);
+                // float2 glyphCoord = get_glyphcoord(glyphdata, relative01);
 
                 float4 sampleColor = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_PointClamp, cell_center);
                 float4 textMask = tex2D(_TextAtlas, glyphCoord);
