@@ -87,7 +87,7 @@ Shader "Fullscreen/TextRenderShader"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 float2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
-                
+
                 float2 scale = float(1.0).xx / float2(_Width, _Height);
                 uint2 cell = uint2(uv / scale);
                 float4 screenRect = CalculateRect(cell, scale);
@@ -98,7 +98,9 @@ Shader "Fullscreen/TextRenderShader"
                 
                 float2 relative01 = (uv - screenRect.xy) / screenRect.zw;
 
-                int selected = _characterBuffer[_Width * cell.y + cell.x];
+                uint index = cell.y * _Width + cell.x;
+                int selected = _characterBuffer[index];
+
                 Glyph glyph = _glyphBuffer[selected];
 
                 float4 glyphdata = float4(glyph.x, glyph.y, glyph.width, glyph.height);

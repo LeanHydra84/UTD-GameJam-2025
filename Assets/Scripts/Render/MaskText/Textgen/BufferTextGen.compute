@@ -90,10 +90,6 @@ float get_stencil(float2 uv)
 
 float4 CalculateRect(uint2 cell, float2 scale)
 {
-    // uint tw, th;
-    // uint _;
-    // screenColor.GetDimensions(0, tw, th, _);
-    
     float2 bottomleft = cell * scale;
     return float4(bottomleft.xy, scale.xy);
 }
@@ -102,7 +98,9 @@ float4 CalculateRect(uint2 cell, float2 scale)
 void GenBrightnessText (uint3 id : SV_DispatchThreadID)
 {
     uint index = id.y * width + id.x;
-    if (index >= width * height) return;
+
+    if (id.x >= width) return;
+    if (id.y >= height) return;
 
     float2 scale = float(1.0).xx / float2(width, height);
 
@@ -121,4 +119,6 @@ void GenBrightnessText (uint3 id : SV_DispatchThreadID)
     int charSelected = brightnessToChar(brightness);
 
     Result[index] = charSelected;
+
+    Result[0] = 9;
 }

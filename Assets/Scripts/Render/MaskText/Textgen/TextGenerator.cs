@@ -98,7 +98,6 @@ public class TextGenerator : IDisposable
 		int kernel = shader.FindKernel(CurrentKernel);
 		shader.SetTexture(kernel, ScreenColorID, handle);
 	}
-    
 	
 	public void Generate()
 	{
@@ -111,7 +110,7 @@ public class TextGenerator : IDisposable
 		shader.SetInt(HeightID, Height);
         shader.SetInt(CharCountID, GlyphCount);
 		
-		shader.Dispatch(kernel, Width / (int)x + 1, Height / (int)y + 1, 1);
+		shader.Dispatch(kernel, Mathf.CeilToInt((float)Width / x), Mathf.CeilToInt((float)Height / y), 1);
 	}
 
 	public void Dispose()
