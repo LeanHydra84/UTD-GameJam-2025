@@ -24,9 +24,18 @@ public class Interacter : MonoBehaviour
                 interact?.OnHoverEnter();
             }
 
-            if(pInput.Interact)
+            if (pInput.Interact)
+            {
+                currentHover.OnHoverExit();
+                currentHover = null;
                 interact?.Interact();
+            }
 
+        }
+        else
+        {
+            currentHover?.OnHoverExit();
+            currentHover = null;
         }
     }
 }
