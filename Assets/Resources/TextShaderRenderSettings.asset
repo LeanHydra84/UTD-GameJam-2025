@@ -20,7 +20,7 @@ MonoBehaviour:
   layerMask:
     serializedVersion: 2
     m_Bits: 64
-  glyphSet: \;-=aXO0#.
+  glyphSet: ' O~_=+rcsao*egdqpkhnufmwWBHKRMQN@#.'
   font: {fileID: 11400000, guid: d8a2ae60f7825934e8a2201a4fe34390, type: 2}
   textGenerationComputeShader: {fileID: 7200000, guid: eadfdb70379ab7a46916cafdfd9e4b16, type: 3}
   textGenerationMaterial: {fileID: 2100000, guid: 9edb0881c1639c04680e809aa81f93b9, type: 2}

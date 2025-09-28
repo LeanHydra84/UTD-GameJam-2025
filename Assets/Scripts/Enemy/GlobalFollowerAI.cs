@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class GlobalFollowerAI : MonoBehaviour
@@ -25,7 +26,10 @@ public class GlobalFollowerAI : MonoBehaviour
     public bool enableGlobalTracking = true; // always know player position
     public float maxFollowDistance = 1000f; // maximum distance before giving up
     public float pathUpdateInterval = 0.5f; // how often to recalculate path when far away
-    
+
+    [SerializeField] private float killDistance = 1;
+        
+        
     // Internal state
     private NavMeshAgent agent;
     private Camera playerCam;
@@ -37,11 +41,13 @@ public class GlobalFollowerAI : MonoBehaviour
 
     void OnDisable()
     {
+        if (agent == null) return;
         agent.enabled = false;
     }
 
     void OnEnable()
     {
+        if (agent == null) return;
         agent.enabled = true;
     }
     
@@ -85,6 +91,11 @@ public class GlobalFollowerAI : MonoBehaviour
 
         state = 0;
         inVision = false;
+
+        if (Vector3.Distance(player.transform.position, transform.position) < killDistance)
+        {
+            SceneManager.LoadScene("MainMenu");
+        }
         
         // state transitions
         switch (state)

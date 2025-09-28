@@ -13,12 +13,12 @@ public class InteractableHoverStatic : MonoBehaviour, IInteractable
 	
 	public virtual bool Interact() => false;
 
-	public void OnHoverEnter()
+	public virtual void OnHoverEnter()
 	{
 		gameObject.layer = LayerMask.NameToLayer("MaskLayer");
 	}
 
-	public void OnHoverExit()
+	public virtual void OnHoverExit()
 	{
 		gameObject.layer = startLayer;
 	}

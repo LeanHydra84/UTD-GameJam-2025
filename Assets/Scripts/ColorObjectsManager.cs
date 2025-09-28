@@ -17,11 +17,16 @@ public class ColorObjectsManager : MonoBehaviour
 		blueObjects = GameObject.FindGameObjectsWithTag("Blue");
 		redObjects = GameObject.FindGameObjectsWithTag("Red");
 		
+		blueAndClear = GameObject.FindGameObjectsWithTag("BlueClear");
+		redAndClear = GameObject.FindGameObjectsWithTag("RedClear");
+		
 		redEnemy = new RBEnemy(GameObject.FindGameObjectWithTag("RedEnemy"));
 		blueEnemy = new RBEnemy(GameObject.FindGameObjectWithTag("BlueEnemy"));
 		
 		Debug.Log($"{blueObjects.Length} blue objects found");
 		Debug.Log($"{redObjects.Length} red objects found");
+
+		Resources.Load<TextOverrideInstance>("textOverride").text = string.Empty;
 		
 		Instance = this;
 	}
@@ -30,6 +35,7 @@ public class ColorObjectsManager : MonoBehaviour
 	{
 		foreach (GameObject obj in list)
 		{
+			if (obj == null) continue;
 			obj.SetActive(en);
 		}
 	}
@@ -41,6 +47,10 @@ public class ColorObjectsManager : MonoBehaviour
 			SetAll(blueObjects, true);
 			SetAll(redObjects, false);
 
+			SetAll(blueAndClear, true);
+			SetAll(redAndClear, false);
+
+			
 			redEnemy?.SetEnabled(false, discardMaterial);
 			blueEnemy?.SetEnabled(true, discardMaterial);
 		}
@@ -49,6 +59,9 @@ public class ColorObjectsManager : MonoBehaviour
 			SetAll(blueObjects, false);
 			SetAll(redObjects, true);
 			
+			SetAll(blueAndClear, false);
+			SetAll(redAndClear, true);
+			
 			redEnemy?.SetEnabled(true, discardMaterial);
 			blueEnemy?.SetEnabled(false, discardMaterial);
 		}
@@ -56,6 +69,9 @@ public class ColorObjectsManager : MonoBehaviour
 		{
 			SetAll(blueObjects, false);
 			SetAll(redObjects, false);
+			
+			SetAll(blueAndClear, true);
+			SetAll(redAndClear, true);
 			
 			redEnemy?.SetEnabled(false, discardMaterial);
 			blueEnemy?.SetEnabled(false, discardMaterial);
@@ -91,5 +107,8 @@ public class ColorObjectsManager : MonoBehaviour
 
 	private GameObject[] blueObjects;
 	private GameObject[] redObjects;
+
+	private GameObject[] redAndClear;
+	private GameObject[] blueAndClear;
 
 }

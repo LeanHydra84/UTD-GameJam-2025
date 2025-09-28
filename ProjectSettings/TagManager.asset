@@ -8,6 +8,8 @@ TagManager:
   - Red
   - RedEnemy
   - BlueEnemy
+  - RedClear
+  - BlueClear
   layers:
   - Default
   - TransparentFX

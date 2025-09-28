@@ -107,7 +107,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &6363967476962741518
 Transform:
   m_ObjectHideFlags: 0
@@ -197,7 +197,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &3959520288109897992
 Transform:
   m_ObjectHideFlags: 0
@@ -380,6 +380,9 @@ MonoBehaviour:
   <IsInteractable>k__BackingField: 1
   fuseRed: {fileID: 6575247883810385112}
   fuseBlue: {fileID: 3834656305320531819}
+  onAllFuses:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!65 &3353545331638665715
 BoxCollider:
   m_ObjectHideFlags: 0

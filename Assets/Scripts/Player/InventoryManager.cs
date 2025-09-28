@@ -15,4 +15,6 @@ public class InventoryManager : MonoBehaviour
 	public bool HasFuzeBlue;
 	public bool HasKey;
 
+	public bool HasFilmReel;
+
 }
