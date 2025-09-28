@@ -16,10 +16,7 @@ public class Interacter : MonoBehaviour
         if(Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, reachDistance))
         {
             IInteractable interact = hit.transform.GetComponent<IInteractable>();
-            if (interact?.IsInteractable == false)
-            {
-                interact = null;
-            }
+
             
             if(interact != currentHover)
             {
@@ -29,6 +26,7 @@ public class Interacter : MonoBehaviour
             }
 
             if (!pInput.Interact) return;
+            if (interact?.IsInteractable == false) return;
             
             bool? exit = interact?.Interact();
             if (exit != true) return;
