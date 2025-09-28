@@ -112,7 +112,6 @@ void GenBrightnessText (uint3 id : SV_DispatchThreadID)
         Result[index] = overrideBuffer[ovIndex];
         return;
     }
-    
 
     float2 scale = float(1.0).xx / float2(width, height);
 
@@ -120,16 +119,20 @@ void GenBrightnessText (uint3 id : SV_DispatchThreadID)
     float2 centeruv = screenRect.xy + screenRect.zw * 0.5f;
 
     float stencil = get_stencil(centeruv);
-    if (stencil > 0.5)
-    {
-        float rand = random_value(id);
-        Result[index] = select_int(rand);
-        return;
-    }
+
     
     float brightness = get_brightness(centeruv, scale);
     int charSelected = brightnessToChar(brightness);
 
+    if (stencil > 0.5)
+    {
+        float rand = random_value(id);
+        // Result[index] = select_int(rand);
+        // (int)clamp(round(random * charCount), 0, charCount - 1);
+        Result[index] =  (int)clamp(round((rand - 0.5) * 2 * 3) + charSelected, 0, charCount - 1);
+        return;
+    }
+    
     Result[index] = charSelected;
 
     Result[0] = 9;

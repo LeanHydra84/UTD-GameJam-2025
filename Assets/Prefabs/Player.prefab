@@ -250,6 +250,7 @@ GameObject:
   - component: {fileID: 6433720765027479120}
   - component: {fileID: 8440460788402665677}
   - component: {fileID: 672197080416912954}
+  - component: {fileID: 4104462359242628079}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -408,3 +409,15 @@ MonoBehaviour:
   playerCamera: {fileID: 8364218458907661207}
   viewBobScale: 0.045
   angleMinMax: {x: -80, y: 80}
+--- !u!114 &4104462359242628079
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3879602116191373235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07f61114ab368c14baf10f3a667546ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
