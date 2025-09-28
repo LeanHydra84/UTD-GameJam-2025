@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -83,6 +84,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             simpleDrawData.IsInitialized = false;
 
             if (settings == null) return;
+            if (!settings.enabled) return;
             if (drawMaterial == null)
             {
                 if (settings.simpleDrawShader)
@@ -179,6 +181,19 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
         
         private int glyphCount;
         private RenderTextureDescriptor descriptor;
+
+        // GLYPH OVERRIDE
+        private Dictionary<char, int> characterMappings;
+        private string currentOverrideString;
+        private int[] currentOverrideBufferList;
+        
+        private int[] CalculateOverrideBufferList(string overrideString)
+        {
+            return overrideString
+                .Where(a => characterMappings.ContainsKey(a))
+                .Select(a => characterMappings[a])
+                .ToArray();
+        }
         
         [StructLayout(LayoutKind.Sequential)]
         private struct ComputeGlyph
@@ -197,12 +212,39 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             }
         }
 
-        private IEnumerable<Glyph> GetGlyphsFromString(TMP_FontAsset fontAsset, string str)
+        // private IEnumerable<Glyph> GetGlyphsFromString(TMP_FontAsset fontAsset, string str)
+        // {
+        //     if (string.IsNullOrEmpty(str))
+        //         return fontAsset.glyphTable;
+        //     
+        //     return str.Select(a => fontAsset.characterLookupTable[a].glyph);
+        // }
+
+        private ComputeGlyph[] CalculateGlyphSetAndStore(TMP_FontAsset fontAsset, string str, Vector2Int txDim)
         {
+            const string alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
             if (string.IsNullOrEmpty(str))
-                return fontAsset.glyphTable;
+            {
+                str = new string(fontAsset.characterTable.Select(a => (char)a.unicode).ToArray());
+            }
+            else
+            {
+                str += alphabet;
+            }
+
+            List<char> charList = str.Where(a => fontAsset.HasCharacter(a)).ToList();
             
-            return str.Select(a => fontAsset.characterLookupTable[a].glyph);
+            characterMappings = new Dictionary<char, int>();
+            List<Glyph> result = new List<Glyph>();
+            for (int i = 0; i < charList.Count; i++)
+            {
+                char c = str[i];
+                Glyph current = fontAsset.characterLookupTable[c].glyph;
+                result.Add(current);
+                characterMappings[c] = i;
+            }
+            
+            return result.Select(a => new ComputeGlyph(a, txDim)).ToArray();
         }
 
         private void CalculateFontBuffers()
@@ -211,9 +253,11 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
                 return;
             
             Vector2Int txDim = new Vector2Int(settings.font.atlasWidth, settings.font.atlasHeight);
-            ComputeGlyph[] glyphs = GetGlyphsFromString(settings.font, settings.glyphSet)
-                .Select(a => new ComputeGlyph(a, txDim))
-                .ToArray();
+            // ComputeGlyph[] glyphs = GetGlyphsFromString(settings.font, settings.glyphSet)
+            //     .Select(a => new ComputeGlyph(a, txDim))
+            //     .ToArray();
+
+            ComputeGlyph[] glyphs = CalculateGlyphSetAndStore(settings.font, settings.glyphSet, txDim);
             
             if (glyphBuffer != null)
             {
@@ -223,7 +267,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             glyphBuffer.name = "Glyph Buffer";
             glyphBuffer.SetData(glyphs);
             
-            glyphCount = glyphs.Length;
+            glyphCount = settings.glyphSet.Length;
             
             drawMaterial.SetBuffer(GlyphBufferID, glyphBuffer);
         }
@@ -269,6 +313,7 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             textTextureData.IsInitialized = false;
 
             if (settings == null) return;
+            if (settings == null) return;
             if (drawMaterial == null) return;
             
             if (resourceData.isActiveTargetBackBuffer)
@@ -302,6 +347,24 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
                 data.ScreenColor = resourceData.activeColorTexture;
                 data.GlyphBuffer = glyphBuffer;
                 data.StencilTextureHandle = sdd.IsInitialized ? sdd.SimpleDrawTexture : TextureHandle.nullHandle;
+
+                // Override strings
+                
+                string overrideStr;
+                if (settings.textOverride == null || string.IsNullOrEmpty(settings.textOverride.text))
+                {
+                    overrideStr = string.Empty;
+                }
+                else
+                {
+                    overrideStr = settings.textOverride.text;
+                }
+
+                if (overrideStr != currentOverrideString)
+                {
+                    int[] overrideIntArray = CalculateOverrideBufferList(overrideStr);
+                    textGenerator.SetOverrideString(overrideIntArray);
+                }
                 
                 builder.UseTexture(sdd.SimpleDrawTexture);
                 builder.UseTexture(resourceData.activeColorTexture);
@@ -356,6 +419,9 @@ public class MaskTextRenderFeature : ScriptableRendererFeature
             UniversalResourceData resourceData = frameContext.Get<UniversalResourceData>();
             UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
+            if (settings == null) return;
+            if (!settings.enabled) return;
+            
             if (resourceData.isActiveTargetBackBuffer)
                 return;
 

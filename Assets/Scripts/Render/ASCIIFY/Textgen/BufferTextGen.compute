@@ -15,6 +15,10 @@ SamplerState samplerScreenColor;
 Texture2D<float> StencilTexture;
 SamplerState samplerStencilTexture;
 
+// Override buffer
+StructuredBuffer<int> overrideBuffer;
+uint overrideBufferLength;
+
 float random_value(uint3 id)
 {
     uint4 rs = randomSeed;
@@ -101,6 +105,14 @@ void GenBrightnessText (uint3 id : SV_DispatchThreadID)
 
     if (id.x >= width) return;
     if (id.y >= height) return;
+
+    if (overrideBufferLength > 0)
+    {
+        int ovIndex = index % overrideBufferLength;
+        Result[index] = overrideBuffer[ovIndex];
+        return;
+    }
+    
 
     float2 scale = float(1.0).xx / float2(width, height);
 

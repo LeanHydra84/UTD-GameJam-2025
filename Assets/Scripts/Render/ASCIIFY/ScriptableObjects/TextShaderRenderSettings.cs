@@ -4,6 +4,9 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "TextShaderRenderSettings", menuName = "Scriptable Objects/TextShaderRenderSettings")]
 public class TextShaderRenderSettings : ScriptableObject
 {
+	public bool enabled;
+	
+	[Header("Screen")]
 	[Min(1)] public int width;
 	[Min(1)] public int height;
 	
@@ -17,6 +20,7 @@ public class TextShaderRenderSettings : ScriptableObject
 	public TMP_FontAsset font;
 	public ComputeShader textGenerationComputeShader;
 	public Material textGenerationMaterial;
+	public TextOverrideInstance textOverride;
 	
 	[Header("Mask")]
 	public Material textMaskMaterial;

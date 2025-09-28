@@ -16,7 +16,11 @@ public class Interacter : MonoBehaviour
         if(Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, reachDistance))
         {
             IInteractable interact = hit.transform.GetComponent<IInteractable>();
-
+            if (interact?.IsInteractable == false)
+            {
+                interact = null;
+            }
+            
             if(interact != currentHover)
             {
                 currentHover?.OnHoverExit();
@@ -24,13 +28,12 @@ public class Interacter : MonoBehaviour
                 interact?.OnHoverEnter();
             }
 
-            if (pInput.Interact)
-            {
-                currentHover.OnHoverExit();
-                currentHover = null;
-                interact?.Interact();
-            }
-
+            if (!pInput.Interact) return;
+            
+            bool? exit = interact?.Interact();
+            if (exit != true) return;
+            currentHover.OnHoverExit();
+            currentHover = null;
         }
         else
         {

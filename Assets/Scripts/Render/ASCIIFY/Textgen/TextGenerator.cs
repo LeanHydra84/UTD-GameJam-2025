@@ -12,13 +12,36 @@ public class TextGenerator : IDisposable
 	public int Height { get; private set; }
 	public int GlyphCount { get; set; }
 
+	public string Override { get; private set; }
+
 	public ComputeBuffer Buffer => buffer;
+
+	private ComputeBuffer overrideBuffer;
+	private int[] overrideBufferList;
 	
 	public TextGenerator(ComputeShader shader, int glyphCount, int width, int height)
 	{
 		this.shader = shader;
 		GlyphCount = glyphCount;
 		Resize(width, height);
+		SetOverrideString(Array.Empty<int>());
+	}
+
+	public void SetOverrideString(int[] indices)
+	{
+		overrideBufferList = indices;
+		// if (indices == null || indices.Length == 0)
+		// {
+		// 	return;
+		// }
+		
+		if (overrideBuffer == null || overrideBuffer.count < indices.Length)
+		{
+			overrideBuffer?.Release();
+			overrideBuffer = new ComputeBuffer(Math.Max(indices.Length, 1), sizeof(int));
+		}
+		
+		overrideBuffer.SetData(indices);
 	}
 
 	private void SetSize(int count)
@@ -72,6 +95,8 @@ public class TextGenerator : IDisposable
 	private static readonly int StringBufferID = Shader.PropertyToID("Result");
 	private static readonly int ScreenColorID = Shader.PropertyToID("ScreenColor");
 	private static readonly int StencilTextureID = Shader.PropertyToID("StencilTexture");
+	private static readonly int OverrideBufferLengthID = Shader.PropertyToID("overrideBufferLength");
+	private static readonly int OverrideBufferID = Shader.PropertyToID("overrideBuffer");
 
 	private int[] GetSeed()
 	{
@@ -109,6 +134,10 @@ public class TextGenerator : IDisposable
 		shader.SetInt(WidthID, Width);
 		shader.SetInt(HeightID, Height);
         shader.SetInt(CharCountID, GlyphCount);
+        
+        // Override string
+        shader.SetInt(OverrideBufferLengthID, overrideBufferList?.Length ?? 0);
+		shader.SetBuffer(kernel, OverrideBufferID, overrideBuffer);
 		
 		shader.Dispatch(kernel, Mathf.CeilToInt((float)Width / x), Mathf.CeilToInt((float)Height / y), 1);
 	}
